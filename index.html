@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ability Learning - Professional Terminal</title>
+    <title>Ability Learning - Multi-Resource Classroom</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -12,162 +12,245 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         body { background-color: #0c0a09; color: white; font-family: 'Inter', sans-serif; }
-        .custom-focus:focus { outline: none; ring: 4px; ring-color: #10b981; }
+        .custom-scrollbar::-webkit-scrollbar { width: 8px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1c1917; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot, addDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // --- Logo Component ---
-        const Logo = ({ className = "w-12 h-12" }) => (
-            <svg viewBox="0 0 100 100" className={className}>
-                <path d="M50 10 A40 40 0 1 1 20 80" fill="none" stroke="#10b981" strokeWidth="15" strokeLinecap="round"/>
-                <path d="M20 50 A30 30 0 0 1 50 20" fill="none" stroke="#0ea5e9" strokeWidth="15" strokeLinecap="round"/>
-                <circle cx="25" cy="35" r="8" fill="#0ea5e9" />
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuy1GWsgZhuvqImEurgSGwhvPexWBcSq4",
+            authDomain: "gen-lang-client-0867100772.firebaseapp.com",
+            projectId: "gen-lang-client-0867100772",
+            storageBucket: "gen-lang-client-0867100772.firebasestorage.app",
+            messagingSenderId: "674312894394",
+            appId: "1:674312894394:web:df76046ffd15cb02b58f83"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app, "ai-studio-e79f7c64-9d55-41f9-a5ec-b843f5006083");
+        const provider = new GoogleAuthProvider();
+
+        window.fb = { 
+            auth, db, provider, signInWithPopup, signOut, 
+            doc, setDoc, getDoc, collection, onSnapshot, addDoc, serverTimestamp, query, orderBy 
+        };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        const ADMIN_EMAIL = "dqjaisalmorayur@gmail.com";
+
+        const Logo = () => (
+            <svg viewBox="0 0 100 100" className="w-16 h-16">
+                <path d="M50 10 A40 40 0 1 1 20 80" fill="none" stroke="#10b981" strokeWidth="12" strokeLinecap="round"/>
+                <path d="M20 50 A30 30 0 0 1 50 20" fill="none" stroke="#0ea5e9" strokeWidth="12" strokeLinecap="round"/>
+                <circle cx="25" cy="35" r="6" fill="#0ea5e9" />
             </svg>
         );
 
-        // --- Speech Function ---
-        const speak = (text, lang = 'en') => {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang === 'ml' ? 'ml-IN' : 'en-US';
-            utterance.rate = 0.9;
-            window.speechSynthesis.speak(utterance);
-        };
+        const AdminPanel = ({ onClose }) => {
+            const [titleEn, setTitleEn] = useState("");
+            const [titleMl, setTitleMl] = useState("");
+            const [contentEn, setContentEn] = useState("");
+            const [contentMl, setContentMl] = useState("");
+            const [resourceLink, setResourceLink] = useState("");
+            const [loading, setLoading] = useState(false);
 
-        // --- Data ---
-        const MODULES = [
-            {
-                id: 'keyboard-1',
-                title: { en: 'Keyboard Basics', ml: 'കീബോർഡ് അടിസ്ഥാനങ്ങൾ' },
-                category: 'basic',
-                lessons: [
-                    {
-                        title: { en: 'The Home Row', ml: 'ഹോം റോ (Home Row)' },
-                        content: { 
-                            en: 'Place your fingers on A, S, D, and F. Feel the small bump on the F key.', 
-                            ml: 'നിങ്ങളുടെ വിരലുകൾ A, S, D, F എന്നീ കീകളിൽ വയ്ക്കുക. F കീയിലെ ചെറിയ തഴമ്പ് ശ്രദ്ധിക്കുക.' 
-                        }
-                    }
-                ],
-                quiz: [
-                    {
-                        text: { en: 'Which key has a small bump for your left index finger?', ml: 'ഇടത് ചൂണ്ടുവിരലിനായി ചെറിയ തഴമ്പുള്ള കീ ഏതാണ്?' },
-                        options: { en: ['A', 'S', 'F', 'D'], ml: ['A', 'S', 'F', 'D'] },
-                        correctIndex: 2
-                    }
-                ]
-            }
-        ];
-
-        // --- Login Component ---
-        const Login = ({ onLogin }) => {
-            const [isLogin, setIsLogin] = useState(true);
-            const [email, setEmail] = useState('');
-            const [password, setPassword] = useState('');
+            const handleAddModule = async () => {
+                if (!titleEn || !titleMl || !contentEn || !contentMl) return alert("എല്ലാ കോളങ്ങളും പൂരിപ്പിക്കുക.");
+                setLoading(true);
+                try {
+                    await window.fb.addDoc(window.fb.collection(window.fb.db, "modules"), {
+                        title: { en: titleEn, ml: titleMl },
+                        lessons: [{
+                            title: { en: titleEn, ml: titleMl },
+                            content: { en: contentEn, ml: contentMl }
+                        }],
+                        resourceLink: resourceLink || "",
+                        createdAt: window.fb.serverTimestamp()
+                    });
+                    alert("പുതിയ ക്ലാസ് വിജയകരമായി ചേർത്തു!");
+                    onClose();
+                } catch (e) {
+                    console.error(e);
+                    alert("ക്ലാസ് ചേർക്കാൻ സാധിച്ചില്ല.");
+                }
+                setLoading(false);
+            };
 
             return (
-                <div className="min-h-screen flex items-center justify-center p-4">
-                    <div className="w-full max-w-md bg-stone-900 rounded-[2rem] border-4 border-stone-800 overflow-hidden shadow-2xl">
-                        <div className="bg-emerald-600 p-10 text-center">
-                            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl">
-                                <Logo className="w-12 h-12" />
-                            </div>
-                            <h1 className="text-2xl font-black">ABILITY LEARNING</h1>
+                <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-50">
+                    <div className="bg-stone-900 w-full max-w-2xl rounded-[2.5rem] border-4 border-stone-800 p-8 space-y-6 overflow-y-auto max-h-[90vh] custom-scrollbar">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-2xl font-black text-emerald-500">ADD NEW CLASS</h2>
+                            <button onClick={onClose} className="text-stone-500 font-black hover:text-white">CLOSE</button>
                         </div>
-                        <div className="p-8 space-y-6">
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-stone-500 uppercase tracking-widest">Email Address</label>
-                                <input 
-                                    type="email" 
-                                    className="w-full bg-white text-black p-4 rounded-xl font-black text-xl border-4 border-stone-700 focus:border-emerald-500 outline-none"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="email@example.com"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-stone-500 uppercase tracking-widest">Password</label>
-                                <input 
-                                    type="password" 
-                                    className="w-full bg-white text-black p-4 rounded-xl font-black text-xl border-4 border-stone-700 focus:border-emerald-500 outline-none"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    placeholder="••••••••"
-                                />
-                            </div>
-                            <button 
-                                onClick={() => onLogin({ fullName: email.split('@')[0] })}
-                                className="w-full bg-emerald-500 text-black font-black py-5 rounded-xl text-xl shadow-lg active:scale-95 transition-all"
-                            >
-                                {isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}
-                            </button>
-                            <button 
-                                onClick={() => setIsLogin(!isLogin)}
-                                className="w-full text-stone-500 font-black text-xs uppercase tracking-widest"
-                            >
-                                {isLogin ? 'New Student? Register' : 'Have an account? Login'}
-                            </button>
+                        <div className="space-y-4">
+                            <input value={titleEn} onChange={e => setTitleEn(e.target.value)} placeholder="Title (English)" className="w-full bg-stone-950 p-4 rounded-xl border-2 border-stone-800 outline-none focus:border-emerald-500 font-bold" />
+                            <input value={titleMl} onChange={e => setTitleMl(e.target.value)} placeholder="Title (Malayalam)" className="w-full bg-stone-950 p-4 rounded-xl border-2 border-stone-800 outline-none focus:border-emerald-500 font-bold" />
+                            <textarea value={contentEn} onChange={e => setContentEn(e.target.value)} placeholder="Lesson Content (English)" className="w-full bg-stone-950 p-4 rounded-xl border-2 border-stone-800 outline-none focus:border-emerald-500 h-32 font-medium" />
+                            <textarea value={contentMl} onChange={e => setContentMl(e.target.value)} placeholder="Lesson Content (Malayalam)" className="w-full bg-stone-950 p-4 rounded-xl border-2 border-stone-800 outline-none focus:border-emerald-500 h-32 font-medium" />
+                            <input value={resourceLink} onChange={e => setResourceLink(e.target.value)} placeholder="Resource Link (Google Drive / Audio Link)" className="w-full bg-stone-950 p-4 rounded-xl border-2 border-stone-800 outline-none focus:border-emerald-500 font-bold text-emerald-500" />
                         </div>
+                        <button 
+                            disabled={loading}
+                            onClick={handleAddModule}
+                            className="w-full bg-emerald-500 text-black font-black py-5 rounded-2xl text-xl shadow-lg active:scale-95 transition-all disabled:opacity-50"
+                        >
+                            {loading ? "UPLOADING..." : "PUBLISH CLASS"}
+                        </button>
                     </div>
                 </div>
             );
         };
 
-        // --- Main App ---
         const App = () => {
             const [user, setUser] = useState(null);
-            const [lang, setLang] = useState('ml');
+            const [loading, setLoading] = useState(true);
+            const [modules, setModules] = useState([]);
+            const [isAdmin, setIsAdmin] = useState(false);
+            const [showAdmin, setShowAdmin] = useState(false);
             const [currentModule, setCurrentModule] = useState(null);
+            const [lang, setLang] = useState('ml');
 
-            if (!user) return <Login onLogin={setUser} />;
+            useEffect(() => {
+                const unsubscribe = window.fb.auth.onAuthStateChanged(async (user) => {
+                    if (user) {
+                        setIsAdmin(user.email === ADMIN_EMAIL);
+                        const userRef = window.fb.doc(window.fb.db, "users", user.uid);
+                        try {
+                            await window.fb.setDoc(userRef, {
+                                uid: user.uid,
+                                fullName: user.displayName,
+                                email: user.email,
+                                photoURL: user.photoURL,
+                                lastLogin: window.fb.serverTimestamp(),
+                                createdAt: window.fb.serverTimestamp()
+                            }, { merge: true });
+                        } catch (e) { console.error(e); }
+                        setUser(user);
+                    } else {
+                        setUser(null);
+                        setIsAdmin(false);
+                    }
+                    setLoading(false);
+                });
+                return unsubscribe;
+            }, []);
+
+            useEffect(() => {
+                if (!user) return;
+                const q = window.fb.query(window.fb.collection(window.fb.db, "modules"), window.fb.orderBy("createdAt", "desc"));
+                const unsubscribe = window.fb.onSnapshot(q, (snapshot) => {
+                    const mods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    setModules(mods);
+                });
+                return unsubscribe;
+            }, [user]);
+
+            const speak = (text, lang = 'en') => {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = lang === 'ml' ? 'ml-IN' : 'en-US';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            };
+
+            if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0c0a09]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-emerald-500"></div></div>;
+
+            if (!user) return (
+                <div className="min-h-screen flex items-center justify-center p-6">
+                    <div className="w-full max-w-md bg-stone-900 rounded-[3rem] border-4 border-stone-800 overflow-hidden shadow-2xl">
+                        <div className="bg-emerald-600 p-12 text-center">
+                            <div className="w-24 h-24 bg-white rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-xl"><Logo /></div>
+                            <h1 className="text-3xl font-black tracking-tighter">ABILITY LEARNING</h1>
+                        </div>
+                        <div className="p-10">
+                            <button onClick={() => window.fb.signInWithPopup(window.fb.auth, window.fb.provider)} className="w-full bg-white text-black font-black py-5 rounded-2xl text-xl flex items-center justify-center gap-4 border-4 border-stone-200 shadow-xl active:scale-95 transition-all">
+                                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" />
+                                CONTINUE WITH GOOGLE
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
 
             return (
                 <div className="max-w-4xl mx-auto p-6 space-y-10">
-                    <header className="flex justify-between items-center bg-stone-900 p-6 rounded-3xl border-2 border-stone-800">
+                    {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+                    <header className="flex justify-between items-center bg-stone-900 p-6 rounded-[2rem] border-2 border-stone-800">
                         <div className="flex items-center gap-4">
-                            <Logo className="w-10 h-10" />
-                            <h1 className="text-xl font-black tracking-tighter">ABILITY LEARNING</h1>
+                            <Logo />
+                            <div>
+                                <h1 className="text-xl font-black tracking-tighter">ABILITY LEARNING</h1>
+                                <p className="text-xs text-emerald-500 font-bold uppercase tracking-widest">Welcome, {user.displayName.split(' ')[0]}</p>
+                            </div>
                         </div>
-                        <select 
-                            value={lang} 
-                            onChange={(e) => setLang(e.target.value)}
-                            className="bg-white text-black font-black p-2 rounded-lg border-2 border-stone-700"
-                        >
-                            <option value="en">English</option>
-                            <option value="ml">Malayalam</option>
-                        </select>
+                        <div className="flex items-center gap-4">
+                            <select value={lang} onChange={e => setLang(e.target.value)} className="bg-stone-800 text-white font-black p-2 rounded-lg border-2 border-stone-700 outline-none">
+                                <option value="en">EN</option>
+                                <option value="ml">ML</option>
+                            </select>
+                            {isAdmin && <button onClick={() => setShowAdmin(true)} className="bg-emerald-500 text-black px-5 py-2.5 rounded-xl font-black text-xs shadow-lg active:scale-95 transition-all">ADMIN</button>}
+                            <button onClick={() => window.fb.auth.signOut()} className="text-stone-500 font-black text-xs hover:text-white">LOGOUT</button>
+                        </div>
                     </header>
 
                     {!currentModule ? (
-                        <div className="grid gap-6">
-                            <h2 className="text-4xl font-black">{lang === 'ml' ? 'പാഠങ്ങൾ' : 'Classroom'}</h2>
-                            {MODULES.map(m => (
-                                <button 
-                                    key={m.id}
-                                    onClick={() => setCurrentModule(m)}
-                                    className="bg-stone-900 p-8 rounded-[2rem] border-4 border-stone-800 hover:border-emerald-500 text-left transition-all group"
-                                >
-                                    <h3 className="text-2xl font-black group-hover:text-emerald-500">{m.title[lang]}</h3>
-                                    <p className="text-stone-500 font-bold mt-2">{lang === 'ml' ? 'തുടങ്ങാൻ ഇവിടെ അമർത്തുക' : 'Click to start learning'}</p>
-                                </button>
-                            ))}
+                        <div className="space-y-8">
+                            <h2 className="text-4xl font-black">{lang === 'ml' ? 'ക്ലാസുകൾ' : 'Available Classes'}</h2>
+                            <div className="grid gap-6">
+                                {modules.length === 0 ? (
+                                    <div className="bg-stone-900/50 p-20 rounded-[3rem] border-4 border-stone-800 border-dashed text-center">
+                                        <p className="text-stone-500 font-bold text-xl">ക്ലാസുകൾ ഒന്നും ലഭ്യമല്ല. അഡ്മിൻ പുതിയവ ചേർക്കുന്നത് വരെ കാത്തിരിക്കുക.</p>
+                                    </div>
+                                ) : (
+                                    modules.map(m => (
+                                        <button key={m.id} onClick={() => setCurrentModule(m)} className="bg-stone-900 p-8 rounded-[2.5rem] border-4 border-stone-800 hover:border-emerald-500 text-left transition-all group shadow-lg active:scale-[0.98]">
+                                            <h3 className="text-2xl font-black group-hover:text-emerald-500 transition-colors">{m.title[lang]}</h3>
+                                            <p className="text-stone-500 font-bold mt-2 uppercase text-xs tracking-widest">{lang === 'ml' ? 'തുടങ്ങാൻ ഇവിടെ അമർത്തുക' : 'Click to start learning'}</p>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     ) : (
-                        <div className="bg-stone-900 p-10 rounded-[3rem] border-4 border-stone-800 space-y-8">
-                            <button onClick={() => setCurrentModule(null)} className="text-emerald-500 font-black uppercase tracking-widest">← BACK</button>
-                            <h2 className="text-4xl font-black text-white">{currentModule.lessons[0].title[lang]}</h2>
-                            <p className="text-2xl text-stone-300 leading-relaxed font-bold">{currentModule.lessons[0].content[lang]}</p>
-                            <button 
-                                onClick={() => speak(currentModule.lessons[0].content[lang], lang)}
-                                className="bg-emerald-500 text-black font-black px-8 py-4 rounded-xl text-xl"
-                            >
-                                {lang === 'ml' ? 'വായിക്കുക' : 'READ ALOUD'}
-                            </button>
+                        <div className="bg-stone-900 p-10 rounded-[3rem] border-4 border-stone-800 space-y-8 shadow-2xl">
+                            <button onClick={() => setCurrentModule(null)} className="text-emerald-500 font-black uppercase tracking-widest flex items-center gap-2">← BACK TO CLASSES</button>
+                            <div className="space-y-4">
+                                <h2 className="text-4xl font-black text-white leading-tight">{currentModule.lessons[0].title[lang]}</h2>
+                                <div className="h-1 w-20 bg-emerald-500 rounded-full"></div>
+                            </div>
+                            <p className="text-2xl text-stone-300 leading-relaxed font-bold bg-stone-950 p-8 rounded-3xl border-2 border-stone-800">{currentModule.lessons[0].content[lang]}</p>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <button 
+                                    onClick={() => speak(currentModule.lessons[0].content[lang], lang)} 
+                                    className="bg-emerald-500 text-black font-black py-5 rounded-2xl text-xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3"
+                                >
+                                    {lang === 'ml' ? 'പാഠം കേൾക്കുക' : 'LISTEN TO LESSON'}
+                                </button>
+                                
+                                {currentModule.resourceLink && (
+                                    <a 
+                                        href={currentModule.resourceLink} 
+                                        target="_blank" 
+                                        className="bg-stone-800 text-white font-black py-5 rounded-2xl text-xl shadow-xl active:scale-95 transition-all flex items-center justify-center gap-3 border-2 border-stone-700 text-center"
+                                    >
+                                        {lang === 'ml' ? 'ലിങ്ക് തുറക്കുക' : 'OPEN RESOURCE'}
+                                    </a>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
