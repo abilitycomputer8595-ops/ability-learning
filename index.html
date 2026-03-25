@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ability Learning - Professional Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #0c0a09; color: white; font-family: 'Inter', sans-serif; }
+        .custom-focus:focus { outline: none; ring: 4px; ring-color: #10b981; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        // --- Logo Component ---
+        const Logo = ({ className = "w-12 h-12" }) => (
+            <svg viewBox="0 0 100 100" className={className}>
+                <path d="M50 10 A40 40 0 1 1 20 80" fill="none" stroke="#10b981" strokeWidth="15" strokeLinecap="round"/>
+                <path d="M20 50 A30 30 0 0 1 50 20" fill="none" stroke="#0ea5e9" strokeWidth="15" strokeLinecap="round"/>
+                <circle cx="25" cy="35" r="8" fill="#0ea5e9" />
+            </svg>
+        );
+
+        // --- Speech Function ---
+        const speak = (text, lang = 'en') => {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'ml' ? 'ml-IN' : 'en-US';
+            utterance.rate = 0.9;
+            window.speechSynthesis.speak(utterance);
+        };
+
+        // --- Data ---
+        const MODULES = [
+            {
+                id: 'keyboard-1',
+                title: { en: 'Keyboard Basics', ml: 'കീബോർഡ് അടിസ്ഥാനങ്ങൾ' },
+                category: 'basic',
+                lessons: [
+                    {
+                        title: { en: 'The Home Row', ml: 'ഹോം റോ (Home Row)' },
+                        content: { 
+                            en: 'Place your fingers on A, S, D, and F. Feel the small bump on the F key.', 
+                            ml: 'നിങ്ങളുടെ വിരലുകൾ A, S, D, F എന്നീ കീകളിൽ വയ്ക്കുക. F കീയിലെ ചെറിയ തഴമ്പ് ശ്രദ്ധിക്കുക.' 
+                        }
+                    }
+                ],
+                quiz: [
+                    {
+                        text: { en: 'Which key has a small bump for your left index finger?', ml: 'ഇടത് ചൂണ്ടുവിരലിനായി ചെറിയ തഴമ്പുള്ള കീ ഏതാണ്?' },
+                        options: { en: ['A', 'S', 'F', 'D'], ml: ['A', 'S', 'F', 'D'] },
+                        correctIndex: 2
+                    }
+                ]
+            }
+        ];
+
+        // --- Login Component ---
+        const Login = ({ onLogin }) => {
+            const [isLogin, setIsLogin] = useState(true);
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="w-full max-w-md bg-stone-900 rounded-[2rem] border-4 border-stone-800 overflow-hidden shadow-2xl">
+                        <div className="bg-emerald-600 p-10 text-center">
+                            <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-xl">
+                                <Logo className="w-12 h-12" />
+                            </div>
+                            <h1 className="text-2xl font-black">ABILITY LEARNING</h1>
+                        </div>
+                        <div className="p-8 space-y-6">
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-stone-500 uppercase tracking-widest">Email Address</label>
+                                <input 
+                                    type="email" 
+                                    className="w-full bg-white text-black p-4 rounded-xl font-black text-xl border-4 border-stone-700 focus:border-emerald-500 outline-none"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    placeholder="email@example.com"
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-xs font-black text-stone-500 uppercase tracking-widest">Password</label>
+                                <input 
+                                    type="password" 
+                                    className="w-full bg-white text-black p-4 rounded-xl font-black text-xl border-4 border-stone-700 focus:border-emerald-500 outline-none"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                />
+                            </div>
+                            <button 
+                                onClick={() => onLogin({ fullName: email.split('@')[0] })}
+                                className="w-full bg-emerald-500 text-black font-black py-5 rounded-xl text-xl shadow-lg active:scale-95 transition-all"
+                            >
+                                {isLogin ? 'SIGN IN' : 'CREATE ACCOUNT'}
+                            </button>
+                            <button 
+                                onClick={() => setIsLogin(!isLogin)}
+                                className="w-full text-stone-500 font-black text-xs uppercase tracking-widest"
+                            >
+                                {isLogin ? 'New Student? Register' : 'Have an account? Login'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Main App ---
+        const App = () => {
+            const [user, setUser] = useState(null);
+            const [lang, setLang] = useState('ml');
+            const [currentModule, setCurrentModule] = useState(null);
+
+            if (!user) return <Login onLogin={setUser} />;
+
+            return (
+                <div className="max-w-4xl mx-auto p-6 space-y-10">
+                    <header className="flex justify-between items-center bg-stone-900 p-6 rounded-3xl border-2 border-stone-800">
+                        <div className="flex items-center gap-4">
+                            <Logo className="w-10 h-10" />
+                            <h1 className="text-xl font-black tracking-tighter">ABILITY LEARNING</h1>
+                        </div>
+                        <select 
+                            value={lang} 
+                            onChange={(e) => setLang(e.target.value)}
+                            className="bg-white text-black font-black p-2 rounded-lg border-2 border-stone-700"
+                        >
+                            <option value="en">English</option>
+                            <option value="ml">Malayalam</option>
+                        </select>
+                    </header>
+
+                    {!currentModule ? (
+                        <div className="grid gap-6">
+                            <h2 className="text-4xl font-black">{lang === 'ml' ? 'പാഠങ്ങൾ' : 'Classroom'}</h2>
+                            {MODULES.map(m => (
+                                <button 
+                                    key={m.id}
+                                    onClick={() => setCurrentModule(m)}
+                                    className="bg-stone-900 p-8 rounded-[2rem] border-4 border-stone-800 hover:border-emerald-500 text-left transition-all group"
+                                >
+                                    <h3 className="text-2xl font-black group-hover:text-emerald-500">{m.title[lang]}</h3>
+                                    <p className="text-stone-500 font-bold mt-2">{lang === 'ml' ? 'തുടങ്ങാൻ ഇവിടെ അമർത്തുക' : 'Click to start learning'}</p>
+                                </button>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="bg-stone-900 p-10 rounded-[3rem] border-4 border-stone-800 space-y-8">
+                            <button onClick={() => setCurrentModule(null)} className="text-emerald-500 font-black uppercase tracking-widest">← BACK</button>
+                            <h2 className="text-4xl font-black text-white">{currentModule.lessons[0].title[lang]}</h2>
+                            <p className="text-2xl text-stone-300 leading-relaxed font-bold">{currentModule.lessons[0].content[lang]}</p>
+                            <button 
+                                onClick={() => speak(currentModule.lessons[0].content[lang], lang)}
+                                className="bg-emerald-500 text-black font-black px-8 py-4 rounded-xl text-xl"
+                            >
+                                {lang === 'ml' ? 'വായിക്കുക' : 'READ ALOUD'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
