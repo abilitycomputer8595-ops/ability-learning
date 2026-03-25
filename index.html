@@ -3,68 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ability Learning</title>
+    <title>Ability Learning | കാഴ്ചപരിമിതർക്കുള്ള കമ്പ്യൂട്ടർ പഠനം</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #0c0a09; color: white; }
-        .emerald-gradient { background: radial-gradient(circle at center, #10b981 0%, #059669 100%); }
+        body { font-family: 'Inter', sans-serif; background-color: #0c0a09; color: #e7e5e4; }
+        .glass { background: rgba(28, 25, 23, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); }
+        .emerald-glow { box-shadow: 0 0 20px rgba(16, 185, 129, 0.2); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #292524; border-radius: 10px; }
+        .active-filter { background: #10b981; color: #000; }
     </style>
 </head>
-<body>
+<body class="custom-scrollbar">
     <div id="app"></div>
 
     <script>
-        // --- App State ---
+        // --- Configuration & Data ---
+        const UI_TEXT = {
+            ml: {
+                title: "എബിലിറ്റി ലേണിംഗ്",
+                subtitle: "കാഴ്ചപരിമിതർക്കായി ഒരുക്കിയ കമ്പ്യൂട്ടർ പഠന സഹായി",
+                start: "പഠനം ആരംഭിക്കുക",
+                logout: "പുറത്തുകടക്കുക",
+                admin: "അഡ്മിൻ",
+                addModule: "പുതിയ ക്ലാസ് ചേർക്കുക",
+                save: "സേവ് ചെയ്യുക",
+                cancel: "ഒഴിവാക്കുക",
+                level: "നിലവാരം",
+                basic: "അടിസ്ഥാനം",
+                advanced: "അഡ്വാൻസ്ഡ്",
+                all: "എല്ലാം",
+                listen: "പാഠം കേൾക്കുക",
+                back: "തിരികെ",
+                screenReader: "സ്ക്രീൻ റീഡർ",
+                lang: "ഭാഷ"
+            },
+            en: {
+                title: "Ability Learning",
+                subtitle: "Computer Learning Assistant for the Visually Impaired",
+                start: "Start Learning",
+                logout: "Logout",
+                admin: "Admin",
+                addModule: "Add New Module",
+                save: "Save Module",
+                cancel: "Cancel",
+                level: "Level",
+                basic: "Basic",
+                advanced: "Advanced",
+                all: "All",
+                listen: "Listen to Lesson",
+                back: "Back",
+                screenReader: "Screen Reader",
+                lang: "Language"
+            }
+        };
+
         let state = {
             hasInteracted: false,
             profile: JSON.parse(localStorage.getItem('user_profile')) || null,
-            currentModule: null
+            lang: localStorage.getItem('app_lang') || 'ml',
+            screenReader: localStorage.getItem('app_sr') || 'NVDA',
+            levelFilter: 'all',
+            currentModule: null,
+            isAdminMode: false,
+            modules: JSON.parse(localStorage.getItem('app_modules')) || [
+                { id: 1, level: 'basic', title: { ml: 'കമ്പ്യൂട്ടർ പരിചയം', en: 'Intro to Computer' }, content: { ml: 'കമ്പ്യൂട്ടർ ഒരു ഇലക്ട്രോണിക് ഉപകരണമാണ്.', en: 'Computer is an electronic device.' } },
+                { id: 2, level: 'advanced', title: { ml: 'ഇന്റർനെറ്റ് സുരക്ഷ', en: 'Internet Safety' }, content: { ml: 'ശക്തമായ പാസ്‌വേഡുകൾ ഉപയോഗിക്കുക.', en: 'Use strong passwords.' } }
+            ]
         };
 
-        const modules = [
-            { id: 1, title: 'അടിസ്ഥാന കമ്പ്യൂട്ടർ അറിവ്', content: 'ഡാറ്റ പ്രോസസ്സ് ചെയ്യുന്ന ഒരു ഇലക്ട്രോണിക് ഉപകരണമാണ് കമ്പ്യൂട്ടർ.' },
-            { id: 2, title: 'ഇന്റർനെറ്റ് സുരക്ഷ', content: 'എപ്പോഴും ശക്തമായ പാസ്‌വേഡുകൾ ഉപയോഗിക്കുക, സംശയാസ്പദമായ ലിങ്കുകൾ ഒഴിവാക്കുക.' }
-        ];
-
-        // --- Voice Service ---
+        // --- Core Functions ---
         function speak(text) {
             window.speechSynthesis.cancel();
             const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'ml-IN';
+            utterance.lang = state.lang === 'ml' ? 'ml-IN' : 'en-US';
+            utterance.rate = 0.9;
             window.speechSynthesis.speak(utterance);
         }
 
-        // --- UI Components ---
+        function saveState() {
+            localStorage.setItem('user_profile', JSON.stringify(state.profile));
+            localStorage.setItem('app_lang', state.lang);
+            localStorage.setItem('app_sr', state.screenReader);
+            localStorage.setItem('app_modules', JSON.stringify(state.modules));
+        }
+
+        // --- UI Actions ---
+        window.startApp = () => { state.hasInteracted = true; render(); speak(UI_TEXT[state.lang].subtitle); };
+        window.setLang = (l) => { state.lang = l; saveState(); render(); speak(UI_TEXT[l].lang + " changed"); };
+        window.setSR = (sr) => { state.screenReader = sr; saveState(); render(); speak("Screen reader set to " + sr); };
+        window.setLevel = (lvl) => { state.levelFilter = lvl; render(); };
+        window.logout = () => { state.profile = null; saveState(); render(); };
+        window.toggleAdmin = () => { state.isAdminMode = !state.isAdminMode; render(); };
+        
+        window.login = () => {
+            const name = document.getElementById('nameInput').value;
+            if (!name) return;
+            state.profile = { name };
+            saveState();
+            render();
+            speak("Welcome " + name);
+        };
+
+        window.addModule = () => {
+            const titleMl = prompt("Title (Malayalam):");
+            const titleEn = prompt("Title (English):");
+            const contentMl = prompt("Content (Malayalam):");
+            const contentEn = prompt("Content (English):");
+            const level = prompt("Level (basic/advanced):");
+            
+            if (titleMl && contentMl) {
+                state.modules.push({
+                    id: Date.now(),
+                    level: level || 'basic',
+                    title: { ml: titleMl, en: titleEn },
+                    content: { ml: contentMl, en: contentEn }
+                });
+                saveState();
+                render();
+            }
+        };
+
+        // --- Render Logic ---
         function render() {
             const app = document.getElementById('app');
-            
-            // 1. Start Screen
+            const t = UI_TEXT[state.lang];
+
+            // 1. Splash Screen
             if (!state.hasInteracted) {
                 app.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-6">
-                        <button onclick="startApp()" class="emerald-gradient p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-4 active:scale-95 transition-all">
-                            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center">
-                                <span class="text-4xl">▶️</span>
-                            </div>
-                            <div class="text-center">
-                                <h1 class="text-3xl font-black text-black uppercase">Start</h1>
-                                <p class="text-emerald-900 font-bold">തുടങ്ങാൻ ഇവിടെ അമർത്തുക</p>
-                            </div>
+                    <div class="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+                        <div class="w-24 h-24 bg-emerald-500 rounded-3xl mb-8 flex items-center justify-center emerald-glow">
+                            <i data-lucide="monitor" class="w-12 h-12 text-black"></i>
+                        </div>
+                        <h1 class="text-5xl font-black mb-4 tracking-tighter">${t.title}</h1>
+                        <p class="text-stone-400 mb-12 max-w-md text-lg">${t.subtitle}</p>
+                        <button onclick="startApp()" class="bg-emerald-500 text-black px-12 py-5 rounded-2xl font-black text-xl uppercase tracking-widest hover:bg-emerald-400 transition-all active:scale-95">
+                            ${t.start}
                         </button>
                     </div>`;
+                lucide.createIcons();
                 return;
             }
 
-            // 2. Login Screen
+            // 2. Login
             if (!state.profile) {
                 app.innerHTML = `
                     <div class="min-h-screen flex items-center justify-center p-6">
-                        <div class="w-full max-w-md bg-stone-900 p-8 rounded-[2.5rem] border border-white/10">
-                            <h2 class="text-2xl font-black mb-8 text-center uppercase">Ability Learning</h2>
-                            <div class="space-y-4">
-                                <input id="nameInput" type="text" placeholder="പേര് (Name)" class="w-full bg-stone-800 p-4 rounded-2xl outline-none border border-stone-700 focus:border-emerald-500 font-bold">
-                                <button onclick="login()" class="w-full bg-emerald-500 p-4 rounded-2xl font-black text-black uppercase">Access System</button>
+                        <div class="w-full max-w-md glass p-10 rounded-[2.5rem] emerald-glow">
+                            <h2 class="text-3xl font-black mb-8 text-center uppercase tracking-tighter">${t.title}</h2>
+                            <div class="space-y-6">
+                                <input id="nameInput" type="text" placeholder="${state.lang === 'ml' ? 'നിങ്ങളുടെ പേര്' : 'Your Name'}" class="w-full bg-stone-800 p-5 rounded-2xl border border-stone-700 outline-none focus:border-emerald-500 font-bold text-lg">
+                                <button onclick="login()" class="w-full bg-emerald-500 p-5 rounded-2xl font-black text-black uppercase tracking-widest">Access System</button>
                             </div>
                         </div>
                     </div>`;
@@ -73,64 +165,96 @@
 
             // 3. Dashboard
             if (!state.currentModule) {
+                const filtered = state.modules.filter(m => state.levelFilter === 'all' || m.level === state.levelFilter);
+                
                 app.innerHTML = `
-                    <div class="min-h-screen p-6 max-w-4xl mx-auto">
-                        <header class="flex justify-between items-center mb-12">
-                            <h1 class="text-2xl font-black uppercase">Ability Learning</h1>
-                            <button onclick="logout()" class="text-red-500 font-bold">Logout</button>
+                    <div class="min-h-screen flex flex-col">
+                        <!-- Header -->
+                        <header class="glass sticky top-0 z-10 px-6 py-4 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center"><i data-lucide="monitor" class="w-6 h-6 text-black"></i></div>
+                                <h1 class="text-xl font-black uppercase tracking-tighter hidden sm:block">${t.title}</h1>
+                            </div>
+                            <div class="flex gap-3">
+                                <select onchange="setLang(this.value)" class="bg-stone-800 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700">
+                                    <option value="ml" ${state.lang === 'ml' ? 'selected' : ''}>മലയാളം</option>
+                                    <option value="en" ${state.lang === 'en' ? 'selected' : ''}>English</option>
+                                </select>
+                                <select onchange="setSR(this.value)" class="bg-stone-800 px-3 py-2 rounded-xl text-xs font-bold border border-stone-700">
+                                    <option value="NVDA" ${state.screenReader === 'NVDA' ? 'selected' : ''}>NVDA</option>
+                                    <option value="JAWS" ${state.screenReader === 'JAWS' ? 'selected' : ''}>JAWS</option>
+                                    <option value="TalkBack" ${state.screenReader === 'TalkBack' ? 'selected' : ''}>TalkBack</option>
+                                </select>
+                                <button onclick="logout()" class="p-2 text-red-500"><i data-lucide="log-out"></i></button>
+                            </div>
                         </header>
-                        <h2 class="text-3xl font-black mb-8">ക്ലാസ്സുകൾ</h2>
-                        <div class="grid gap-4">
-                            ${modules.map(m => `
-                                <button onclick="selectModule(${m.id})" class="w-full bg-stone-900 p-6 rounded-3xl border border-stone-800 text-left hover:border-emerald-500 transition-all">
-                                    <h3 class="text-xl font-bold">${m.title}</h3>
-                                    <p class="text-stone-500 text-xs uppercase mt-2">തുടങ്ങാൻ അമർത്തുക</p>
+
+                        <main class="flex-1 p-6 max-w-5xl mx-auto w-full">
+                            <div class="flex justify-between items-end mb-8">
+                                <div>
+                                    <h2 class="text-4xl font-black mb-2">${state.lang === 'ml' ? 'ക്ലാസ്സുകൾ' : 'Lessons'}</h2>
+                                    <p class="text-stone-500 font-bold uppercase text-xs tracking-widest">${state.profile.name} | ${state.screenReader} User</p>
+                                </div>
+                                <button onclick="toggleAdmin()" class="text-stone-600 hover:text-emerald-500 transition-colors"><i data-lucide="settings"></i></button>
+                            </div>
+
+                            <!-- Filters -->
+                            <div class="flex gap-2 mb-8 overflow-x-auto pb-2">
+                                <button onclick="setLevel('all')" class="px-6 py-2 rounded-full font-bold text-sm border border-stone-800 ${state.levelFilter === 'all' ? 'active-filter' : 'bg-stone-900'}">${t.all}</button>
+                                <button onclick="setLevel('basic')" class="px-6 py-2 rounded-full font-bold text-sm border border-stone-800 ${state.levelFilter === 'basic' ? 'active-filter' : 'bg-stone-900'}">${t.basic}</button>
+                                <button onclick="setLevel('advanced')" class="px-6 py-2 rounded-full font-bold text-sm border border-stone-800 ${state.levelFilter === 'advanced' ? 'active-filter' : 'bg-stone-900'}">${t.advanced}</button>
+                            </div>
+
+                            ${state.isAdminMode ? `
+                                <button onclick="addModule()" class="w-full mb-8 border-2 border-dashed border-emerald-500/30 p-6 rounded-3xl flex items-center justify-center gap-3 text-emerald-500 font-black uppercase hover:bg-emerald-500/5 transition-all">
+                                    <i data-lucide="plus-circle"></i> ${t.addModule}
                                 </button>
-                            `).join('')}
-                        </div>
+                            ` : ''}
+
+                            <!-- Grid -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${filtered.map(m => `
+                                    <button onclick="selectModule(${m.id})" class="glass p-8 rounded-[2rem] text-left hover:border-emerald-500 transition-all group relative overflow-hidden">
+                                        <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-100 transition-opacity"><i data-lucide="chevron-right"></i></div>
+                                        <span class="text-[10px] font-black uppercase tracking-widest text-emerald-500 mb-2 block">${m.level}</span>
+                                        <h3 class="text-2xl font-black mb-2">${m.title[state.lang]}</h3>
+                                        <p class="text-stone-500 text-sm line-clamp-2">${m.content[state.lang]}</p>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </main>
                     </div>`;
+                lucide.createIcons();
                 return;
             }
 
             // 4. Lesson View
-            const m = modules.find(x => x.id === state.currentModule);
+            const m = state.modules.find(x => x.id === state.currentModule);
             app.innerHTML = `
-                <div class="min-h-screen p-6 max-w-4xl mx-auto">
-                    <button onclick="backToDashboard()" class="text-emerald-500 font-black mb-8">← BACK</button>
-                    <div class="bg-stone-900 p-8 rounded-[2.5rem] border border-stone-800">
-                        <h2 class="text-3xl font-black mb-6 text-emerald-500">${m.title}</h2>
-                        <p class="text-xl leading-relaxed text-stone-300 mb-8">${m.content}</p>
-                        <button onclick="speak('${m.content}')" class="w-full bg-emerald-500 p-4 rounded-2xl text-black font-black uppercase">Listen (കേൾക്കുക)</button>
+                <div class="min-h-screen flex flex-col p-6 max-w-3xl mx-auto">
+                    <button onclick="backToDashboard()" class="flex items-center gap-2 text-emerald-500 font-black uppercase text-xs tracking-widest mb-12">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> ${t.back}
+                    </button>
+                    
+                    <div class="glass p-10 rounded-[3rem] emerald-glow">
+                        <span class="text-xs font-black uppercase tracking-[0.3em] text-emerald-500 mb-4 block">${m.level}</span>
+                        <h2 class="text-4xl font-black mb-8 leading-tight">${m.title[state.lang]}</h2>
+                        <div class="prose prose-invert mb-12">
+                            <p class="text-2xl text-stone-300 leading-relaxed">${m.content[state.lang]}</p>
+                        </div>
+                        <button onclick="speak('${m.content[state.lang]}')" class="w-full bg-emerald-500 p-6 rounded-2xl text-black font-black uppercase tracking-widest flex items-center justify-center gap-4 active:scale-95 transition-all">
+                            <i data-lucide="volume-2"></i> ${t.listen}
+                        </button>
                     </div>
                 </div>`;
+            lucide.createIcons();
         }
-
-        // --- Actions ---
-        window.startApp = () => {
-            state.hasInteracted = true;
-            render();
-            speak('സ്വാഗതം');
-        };
-
-        window.login = () => {
-            const name = document.getElementById('nameInput').value;
-            if (!name) return;
-            state.profile = { fullName: name };
-            localStorage.setItem('user_profile', JSON.stringify(state.profile));
-            render();
-        };
-
-        window.logout = () => {
-            state.profile = null;
-            localStorage.removeItem('user_profile');
-            render();
-        };
 
         window.selectModule = (id) => {
             state.currentModule = id;
             render();
-            const m = modules.find(x => x.id === id);
-            speak(m.title);
+            const m = state.modules.find(x => x.id === id);
+            speak(m.title[state.lang]);
         };
 
         window.backToDashboard = () => {
